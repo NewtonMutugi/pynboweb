@@ -35,7 +35,7 @@ async function fetchAllPages<T>(url: string): Promise<T[]> {
   return results;
 }
 
-async function getEventBaseUrl(): Promise<string> {
+async function getEvent(): Promise<PretalxEvent> {
   if (!API_URL) {
     throw new Error("PRETALX_API_URL is not configured");
   }
@@ -44,7 +44,7 @@ async function getEventBaseUrl(): Promise<string> {
   if (!event) {
     throw new Error("No Pretalx event found");
   }
-  return `${API_URL}${event.slug}`;
+  return event;
 }
 
 function resolveSessionType(
@@ -58,7 +58,8 @@ function resolveSessionType(
 }
 
 export async function getConfirmedSessions(): Promise<Session[]> {
-  const base = await getEventBaseUrl();
+  const event = await getEvent();
+  const base = `${API_URL}${event.slug}`;
 
   const [submissionTypes, submissions] = await Promise.all([
     fetchAllPages<PretalxSubmissionType>(`${base}/submission-types/`),
@@ -108,4 +109,8 @@ export async function getConfirmedSessions(): Promise<Session[]> {
   }
 
   return sessions;
+}
+
+export async function getEventInfo(): Promise<PretalxEvent> {
+  return getEvent();
 }
