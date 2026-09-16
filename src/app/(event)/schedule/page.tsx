@@ -57,8 +57,8 @@ export default async function SchedulePage() {
       </div>
 
       <p className="text-center text-gray-500 text-sm">
-        Keynote speakers and a few sessions are still being confirmed and will
-        be announced closer to the event.
+        Keynote speakers will be announced closer to the event. All sessions run
+        in a single room, so nothing overlaps.
       </p>
 
       <ScheduleTimeline schedule={schedule} />

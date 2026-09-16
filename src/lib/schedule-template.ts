@@ -4,246 +4,156 @@ import type {
 } from "@/components/schedule-timeline";
 import type { Session } from "@/lib/pretalx/types";
 
-type StaticEntry = {
-  kind: "static";
-  item: Omit<ScheduleSession, "speakers">;
-};
+// The event has a single room, so sessions run back to back rather than
+// in parallel tracks. Each day opens with a keynote, talks fill the
+// morning, and workshops fill the afternoon.
+const DAY_START_MINUTES = 8 * 60; // 08:00am
+const ARRIVAL_MINUTES = 60;
+const WARMUP_MINUTES = 30;
+const KEYNOTE_MINUTES = 30;
+const SHORT_BREAK_MINUTES = 15;
+const SESSION_BREAK_MINUTES = 10;
+const LUNCH_MINUTES = 60;
+const CLOSING_MINUTES = 30;
+const DEFAULT_TALK_MINUTES = 45;
+const DEFAULT_WORKSHOP_MINUTES = 60;
 
-type ContentEntry = {
-  kind: "content";
-  time: string;
-  duration: string;
-  tracks: number;
-};
-
-type TemplateEntry = StaticEntry | ContentEntry;
-
-function staticEntry(item: Omit<ScheduleSession, "speakers">): StaticEntry {
-  return { kind: "static", item };
+function formatClock(totalMinutes: number): string {
+  const hour24 = Math.floor(totalMinutes / 60) % 24;
+  const minute = totalMinutes % 60;
+  const period = hour24 >= 12 ? "pm" : "am";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${minute.toString().padStart(2, "0")}${period}`;
 }
 
-// Mirrors the timeslot structure used for PyCon Kenya 2025 (see
-// src/app/(report)/2025/page.tsx), so the live schedule keeps the same
-// rhythm of arrival, keynote, talk/workshop blocks, breaks and lunch.
-const day1Template: TemplateEntry[] = [
-  staticEntry({
-    time: "08:00am - 09:15am",
-    title: "Arrival",
-    type: "registration",
-    speaker: "",
-    duration: "1hr 15 min",
-  }),
-  staticEntry({
-    time: "09:15am - 09:45am",
-    title: "Warm Up",
-    type: "opening",
-    speaker: "",
-    duration: "30 min",
-  }),
-  staticEntry({
-    time: "09:45am - 10:15am",
-    title: "Keynote",
-    type: "keynote",
-    speaker: "To be announced",
-    duration: "30 min",
-  }),
-  staticEntry({
-    time: "10:15am - 10:30am",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "15 min",
-  }),
-  { kind: "content", time: "10:30am - 11:30am", duration: "60 min", tracks: 1 },
-  staticEntry({
-    time: "11:30am - 11:40am",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "10 min",
-  }),
-  { kind: "content", time: "11:40am - 12:40pm", duration: "60 min", tracks: 2 },
-  staticEntry({
-    time: "12:40pm - 12:50pm",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "10 min",
-  }),
-  { kind: "content", time: "12:50pm - 1:35pm", duration: "45 min", tracks: 2 },
-  staticEntry({
-    time: "1:35pm - 2:50pm",
-    title: "Lunch",
-    type: "break",
-    speaker: "",
-    duration: "1hr 15 min",
-  }),
-  { kind: "content", time: "2:50pm - 3:35pm", duration: "45 min", tracks: 2 },
-  staticEntry({
-    time: "3:35pm - 3:50pm",
-    title: "Break",
-    type: "break",
-    speaker: "",
-    duration: "15 min",
-  }),
-  { kind: "content", time: "3:50pm - 4:35pm", duration: "45 min", tracks: 2 },
-  staticEntry({
-    time: "4:35pm - 4:50pm",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "15 min",
-  }),
-];
+function formatRange(startMinutes: number, endMinutes: number): string {
+  return `${formatClock(startMinutes)} - ${formatClock(endMinutes)}`;
+}
 
-const day2Template: TemplateEntry[] = [
-  staticEntry({
-    time: "08:00am - 09:00am",
-    title: "Arrival",
-    type: "registration",
-    speaker: "",
-    duration: "1hr",
-  }),
-  staticEntry({
-    time: "09:00am - 09:30am",
-    title: "Warm Up",
-    type: "opening",
-    speaker: "",
-    duration: "30 min",
-  }),
-  staticEntry({
-    time: "09:30am - 10:30am",
-    title: "Lightning Talks",
-    type: "opening",
-    speaker: "",
-    duration: "60 min",
-  }),
-  staticEntry({
-    time: "10:30am - 10:45am",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "15 min",
-  }),
-  { kind: "content", time: "10:45am - 11:45am", duration: "60 min", tracks: 2 },
-  staticEntry({
-    time: "11:45am - 11:55am",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "10 min",
-  }),
-  { kind: "content", time: "11:55am - 12:55pm", duration: "60 min", tracks: 2 },
-  staticEntry({
-    time: "12:55pm - 1:05pm",
-    title: "Breakout",
-    type: "break",
-    speaker: "",
-    duration: "10 min",
-  }),
-  { kind: "content", time: "1:05pm - 1:50pm", duration: "45 min", tracks: 2 },
-  staticEntry({
-    time: "1:50pm - 3:05pm",
-    title: "Lunch",
-    type: "break",
-    speaker: "",
-    duration: "1hr 15 min",
-  }),
-  { kind: "content", time: "3:05pm - 3:50pm", duration: "45 min", tracks: 2 },
-  staticEntry({
-    time: "3:50pm - 4:00pm",
-    title: "Break",
-    type: "break",
-    speaker: "",
-    duration: "10 min",
-  }),
-  staticEntry({
-    time: "4:00pm - 5:00pm",
-    title: "Lightning Talks & Community",
-    type: "talk",
-    speaker: "",
-    duration: "60 min",
-  }),
-  staticEntry({
-    time: "5:00pm - 5:30pm",
-    title: "Closing Remarks",
-    type: "closing",
-    speaker: "PyCon Kenya Organizers",
-    duration: "30 min",
-  }),
-];
+class DayBuilder {
+  private cursor = DAY_START_MINUTES;
+  private readonly sessions: ScheduleSession[] = [];
 
-function fillDay(
-  template: TemplateEntry[],
-  date: string,
-  queue: Session[],
-): ScheduleDay {
-  const sessions: ScheduleSession[] = [];
-
-  for (const entry of template) {
-    if (entry.kind === "static") {
-      sessions.push({ ...entry.item });
-      continue;
-    }
-
-    for (let i = 0; i < entry.tracks; i++) {
-      const session = queue.shift();
-      if (session) {
-        sessions.push({
-          time: entry.time,
-          title: session.title,
-          type: session.type,
-          speaker: session.speakers.map((s) => s.name).join(", "),
-          duration: session.duration
-            ? `${session.duration} min`
-            : entry.duration,
-          speakers: session.speakers.map((s) => ({
-            name: s.name,
-            avatarUrl: s.avatarUrl,
-          })),
-        });
-      } else {
-        sessions.push({
-          time: entry.time,
-          title: "To be announced",
-          type: "talk",
-          speaker: "",
-          duration: entry.duration,
-        });
-      }
-    }
+  addStatic(
+    durationMinutes: number,
+    title: string,
+    type: string,
+    speaker = "",
+  ) {
+    const start = this.cursor;
+    this.cursor += durationMinutes;
+    this.sessions.push({
+      time: formatRange(start, this.cursor),
+      title,
+      type,
+      speaker,
+      duration: `${durationMinutes} min`,
+    });
   }
 
-  return { date, sessions };
+  addSession(session: Session, fallbackMinutes: number) {
+    const durationMinutes = session.duration ?? fallbackMinutes;
+    const start = this.cursor;
+    this.cursor += durationMinutes;
+    this.sessions.push({
+      time: formatRange(start, this.cursor),
+      title: session.title,
+      type: session.type,
+      speaker: session.speakers.map((s) => s.name).join(", "),
+      duration: `${durationMinutes} min`,
+      speakers: session.speakers.map((s) => ({
+        name: s.name,
+        avatarUrl: s.avatarUrl,
+      })),
+    });
+  }
+
+  build(date: string): ScheduleDay {
+    return { date, sessions: this.sessions };
+  }
+}
+
+function addSessionsWithBreaks(
+  day: DayBuilder,
+  sessions: Session[],
+  fallbackMinutes: number,
+) {
+  sessions.forEach((session, index) => {
+    day.addSession(session, fallbackMinutes);
+    if (index < sessions.length - 1) {
+      day.addStatic(SESSION_BREAK_MINUTES, "Breakout", "break");
+    }
+  });
+}
+
+function buildDay({
+  date,
+  talks,
+  workshops,
+  isLastDay,
+}: {
+  date: string;
+  talks: Session[];
+  workshops: Session[];
+  isLastDay: boolean;
+}): ScheduleDay {
+  const day = new DayBuilder();
+
+  day.addStatic(ARRIVAL_MINUTES, "Arrival", "registration");
+  day.addStatic(WARMUP_MINUTES, "Warm Up", "opening");
+  day.addStatic(KEYNOTE_MINUTES, "Keynote", "keynote", "To be announced");
+  day.addStatic(SHORT_BREAK_MINUTES, "Breakout", "break");
+
+  addSessionsWithBreaks(day, talks, DEFAULT_TALK_MINUTES);
+
+  day.addStatic(LUNCH_MINUTES, "Lunch", "break");
+
+  addSessionsWithBreaks(day, workshops, DEFAULT_WORKSHOP_MINUTES);
+
+  day.addStatic(SHORT_BREAK_MINUTES, "Breakout", "break");
+  if (isLastDay) {
+    day.addStatic(
+      CLOSING_MINUTES,
+      "Closing Remarks",
+      "closing",
+      "PyCon Kenya Organizers",
+    );
+  }
+
+  return day.build(date);
+}
+
+function splitInHalf<T>(items: T[]): [T[], T[]] {
+  const mid = Math.ceil(items.length / 2);
+  return [items.slice(0, mid), items.slice(mid)];
 }
 
 export function buildSchedule(
   sessions: Session[],
   dayDates: [string, string],
 ): ScheduleDay[] {
-  // Fill talks and workshops in a stable, deterministic order.
-  const queue = [...sessions].sort((a, b) => a.title.localeCompare(b.title));
+  const talks = sessions
+    .filter((session) => session.type === "talk")
+    .sort((a, b) => a.title.localeCompare(b.title));
+  const workshops = sessions
+    .filter((session) => session.type === "workshop")
+    .sort((a, b) => a.title.localeCompare(b.title));
 
-  const day1 = fillDay(day1Template, dayDates[0], queue);
-  const day2 = fillDay(day2Template, dayDates[1], queue);
+  const [talksDay1, talksDay2] = splitInHalf(talks);
+  const [workshopsDay1, workshopsDay2] = splitInHalf(workshops);
 
-  // If there are more confirmed sessions than timeslots, surface them
-  // instead of silently dropping them from the schedule.
-  if (queue.length > 0) {
-    day2.sessions.push(
-      ...queue.map((session) => ({
-        time: "Additional sessions (time to be announced)",
-        title: session.title,
-        type: session.type,
-        speaker: session.speakers.map((s) => s.name).join(", "),
-        duration: session.duration ? `${session.duration} min` : "",
-        speakers: session.speakers.map((s) => ({
-          name: s.name,
-          avatarUrl: s.avatarUrl,
-        })),
-      })),
-    );
-  }
-
-  return [day1, day2];
+  return [
+    buildDay({
+      date: dayDates[0],
+      talks: talksDay1,
+      workshops: workshopsDay1,
+      isLastDay: false,
+    }),
+    buildDay({
+      date: dayDates[1],
+      talks: talksDay2,
+      workshops: workshopsDay2,
+      isLastDay: true,
+    }),
+  ];
 }
