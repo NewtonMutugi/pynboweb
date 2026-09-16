@@ -39,8 +39,16 @@ async function getEvent(): Promise<PretalxEvent> {
   if (!API_URL) {
     throw new Error("PRETALX_API_URL is not configured");
   }
-  const events = await fetchJson<PretalxEvent[]>(API_URL);
-  const event = events.find((e) => e.is_public) ?? events[0];
+  const data = await fetchJson<PretalxEvent[] | PretalxPage<PretalxEvent>>(
+    API_URL,
+  );
+  const events = Array.isArray(data) ? data : data.results;
+
+  const configuredSlug = process.env.PRETALX_EVENT_SLUG;
+  const event =
+    (configuredSlug && events.find((e) => e.slug === configuredSlug)) ||
+    events.find((e) => e.is_public) ||
+    events[0];
   if (!event) {
     throw new Error("No Pretalx event found");
   }
@@ -78,11 +86,15 @@ export async function getConfirmedSessions(): Promise<Session[]> {
     }
   }
 
-  const speakers = await Promise.all(
-    [...speakerCodes].map((code) =>
-      fetchJson<PretalxSpeaker>(`${base}/speakers/${code}/`),
-    ),
-  );
+  const speakers = (
+    await Promise.all(
+      [...speakerCodes].map((code) =>
+        fetchJson<PretalxSpeaker>(`${base}/speakers/${code}/`).catch(
+          () => null,
+        ),
+      ),
+    )
+  ).filter((speaker): speaker is PretalxSpeaker => Boolean(speaker));
   const speakerByCode = new Map(speakers.map((s) => [s.code, s]));
 
   const sessions: Session[] = [];

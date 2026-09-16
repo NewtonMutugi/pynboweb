@@ -5,6 +5,10 @@ import { getConfirmedSessions } from "@/lib/pretalx/client";
 import type { Session, Speaker } from "@/lib/pretalx/types";
 import { sessionTypeColor } from "@/lib/session-style";
 
+// The speaker list depends on live Pretalx data, so it can't be
+// prerendered at build time (e.g. Pretalx credentials aren't available in CI).
+export const dynamic = "force-dynamic";
+
 type SpeakerWithSessions = Speaker & { sessions: Session[] };
 
 function buildSpeakers(sessions: Session[]): SpeakerWithSessions[] {
@@ -25,7 +29,12 @@ function buildSpeakers(sessions: Session[]): SpeakerWithSessions[] {
 }
 
 export default async function SpeakersPage() {
-  const sessions = await getConfirmedSessions();
+  let sessions: Session[] = [];
+  try {
+    sessions = await getConfirmedSessions();
+  } catch (error) {
+    console.error("Failed to load Pretalx speakers data", error);
+  }
   const speakers = buildSpeakers(sessions);
 
   return (

@@ -1,7 +1,12 @@
 import { Calendar } from "lucide-react";
 import ScheduleTimeline from "@/components/schedule-timeline";
 import { getConfirmedSessions, getEventInfo } from "@/lib/pretalx/client";
+import type { PretalxEvent, Session } from "@/lib/pretalx/types";
 import { buildSchedule } from "@/lib/schedule-template";
+
+// The schedule depends on live Pretalx data, so it can't be prerendered
+// at build time (e.g. Pretalx credentials aren't available in CI).
+export const dynamic = "force-dynamic";
 
 function formatDate(iso: string) {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -13,11 +18,26 @@ function formatDate(iso: string) {
 }
 
 export default async function SchedulePage() {
-  const [event, sessions] = await Promise.all([
-    getEventInfo(),
-    getConfirmedSessions(),
-  ]);
+  let data: [PretalxEvent, Session[]] | null = null;
 
+  try {
+    data = await Promise.all([getEventInfo(), getConfirmedSessions()]);
+  } catch (error) {
+    console.error("Failed to load Pretalx schedule data", error);
+  }
+
+  if (!data) {
+    return (
+      <div className="text-center space-y-2">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Schedule</h1>
+        <p className="text-gray-500">
+          The schedule will be published here once sessions are confirmed.
+        </p>
+      </div>
+    );
+  }
+
+  const [event, sessions] = data;
   const schedule = buildSchedule(sessions, [
     formatDate(event.date_from),
     formatDate(event.date_to),

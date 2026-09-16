@@ -224,8 +224,26 @@ export function buildSchedule(
   // Fill talks and workshops in a stable, deterministic order.
   const queue = [...sessions].sort((a, b) => a.title.localeCompare(b.title));
 
-  return [
-    fillDay(day1Template, dayDates[0], queue),
-    fillDay(day2Template, dayDates[1], queue),
-  ];
+  const day1 = fillDay(day1Template, dayDates[0], queue);
+  const day2 = fillDay(day2Template, dayDates[1], queue);
+
+  // If there are more confirmed sessions than timeslots, surface them
+  // instead of silently dropping them from the schedule.
+  if (queue.length > 0) {
+    day2.sessions.push(
+      ...queue.map((session) => ({
+        time: "Additional sessions (time to be announced)",
+        title: session.title,
+        type: session.type,
+        speaker: session.speakers.map((s) => s.name).join(", "),
+        duration: session.duration ? `${session.duration} min` : "",
+        speakers: session.speakers.map((s) => ({
+          name: s.name,
+          avatarUrl: s.avatarUrl,
+        })),
+      })),
+    );
+  }
+
+  return [day1, day2];
 }
