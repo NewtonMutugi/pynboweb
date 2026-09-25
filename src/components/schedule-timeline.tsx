@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Calendar,
   Clock,
@@ -16,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export type ScheduleSpeaker = {
   name: string;
@@ -71,102 +74,123 @@ export function getTypeColor(type: string) {
   }
 }
 
+function DayTimeline({ day }: { day: ScheduleDay }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="w-5 h-5" />
+          {day.date}
+        </CardTitle>
+        <CardDescription>
+          Detailed timeline of sessions, workshops, and networking events
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Group sessions by time slot */}
+          {Object.entries(
+            day.sessions.reduce(
+              (acc, session) => {
+                if (!acc[session.time]) {
+                  acc[session.time] = [];
+                }
+                acc[session.time].push(session);
+                return acc;
+              },
+              {} as Record<string, ScheduleSession[]>,
+            ),
+          ).map(([time, sessions]) => (
+            <div key={time} className="border rounded-lg p-4 bg-white">
+              <div className="text-sm font-mono text-gray-500 mb-2">{time}</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {sessions.map((session) => (
+                  <div
+                    key={`${day.date}-${session.time}-${session.title}`}
+                    className="flex flex-col gap-2 p-3 rounded-md border bg-gray-50"
+                  >
+                    <div className="flex items-center gap-2">
+                      {getTypeIcon(session.type)}
+                      <h3 className="font-semibold">{session.title}</h3>
+                      <Badge className={getTypeColor(session.type)}>
+                        {session.type}
+                      </Badge>
+                    </div>
+                    {session.speakers && session.speakers.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-3">
+                        {session.speakers.map((speaker) => (
+                          <div
+                            key={speaker.name}
+                            className="flex items-center gap-2"
+                          >
+                            <SpeakerAvatar
+                              name={speaker.name}
+                              avatarUrl={speaker.avatarUrl}
+                              className="size-7 text-xs"
+                            />
+                            <span className="text-gray-600 text-sm">
+                              {speaker.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      session.speaker && (
+                        <p className="text-gray-600 text-sm">
+                          Speaker: {session.speaker}
+                        </p>
+                      )
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>Duration: {session.duration}</span>
+                      </div>
+                      {session.track && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span>Track: {session.track}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ScheduleTimeline({
   schedule,
 }: {
   schedule: ScheduleDay[];
 }) {
+  if (schedule.length === 0) {
+    return null;
+  }
+
+  if (schedule.length === 1) {
+    return <DayTimeline day={schedule[0]} />;
+  }
+
   return (
-    <div className="space-y-6">
-      {schedule.map((day, dayIndex) => (
-        <Card key={day.date}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Day {dayIndex + 1} - {day.date}
-            </CardTitle>
-            <CardDescription>
-              Detailed timeline of sessions, workshops, and networking events
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Group sessions by time slot */}
-              {Object.entries(
-                day.sessions.reduce(
-                  (acc, session) => {
-                    if (!acc[session.time]) {
-                      acc[session.time] = [];
-                    }
-                    acc[session.time].push(session);
-                    return acc;
-                  },
-                  {} as Record<string, ScheduleSession[]>,
-                ),
-              ).map(([time, sessions]) => (
-                <div key={time} className="border rounded-lg p-4 bg-white">
-                  <div className="text-sm font-mono text-gray-500 mb-2">
-                    {time}
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {sessions.map((session) => (
-                      <div
-                        key={`${day.date}-${session.time}-${session.title}`}
-                        className="flex flex-col gap-2 p-3 rounded-md border bg-gray-50"
-                      >
-                        <div className="flex items-center gap-2">
-                          {getTypeIcon(session.type)}
-                          <h3 className="font-semibold">{session.title}</h3>
-                          <Badge className={getTypeColor(session.type)}>
-                            {session.type}
-                          </Badge>
-                        </div>
-                        {session.speakers && session.speakers.length > 0 ? (
-                          <div className="flex flex-wrap items-center gap-3">
-                            {session.speakers.map((speaker) => (
-                              <div
-                                key={speaker.name}
-                                className="flex items-center gap-2"
-                              >
-                                <SpeakerAvatar
-                                  name={speaker.name}
-                                  avatarUrl={speaker.avatarUrl}
-                                  className="size-7 text-xs"
-                                />
-                                <span className="text-gray-600 text-sm">
-                                  {speaker.name}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          session.speaker && (
-                            <p className="text-gray-600 text-sm">
-                              Speaker: {session.speaker}
-                            </p>
-                          )
-                        )}
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>Duration: {session.duration}</span>
-                          </div>
-                          {session.track && (
-                            <div className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              <span>Track: {session.track}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+    <Tabs defaultValue={schedule[0].date} className="space-y-6">
+      <TabsList>
+        {schedule.map((day, dayIndex) => (
+          <TabsTrigger key={day.date} value={day.date}>
+            Day {dayIndex + 1}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {schedule.map((day) => (
+        <TabsContent key={day.date} value={day.date} className="space-y-6">
+          <DayTimeline day={day} />
+        </TabsContent>
       ))}
-    </div>
+    </Tabs>
   );
 }
