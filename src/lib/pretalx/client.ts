@@ -11,6 +11,20 @@ import type {
 const API_URL = process.env.PRETALX_API_URL;
 const API_KEY = process.env.PRETALX_API_KEY;
 
+// Thrown for any non-2xx Pretalx response, carrying the HTTP status so
+// callers can tell an expected 404 (e.g. no schedule released yet) apart
+// from a real failure (auth, network, 5xx) instead of treating every
+// error the same way.
+export class PretalxRequestError extends Error {
+  status: number;
+
+  constructor(status: number, url: string) {
+    super(`Pretalx request failed (${status}): ${url}`);
+    this.name = "PretalxRequestError";
+    this.status = status;
+  }
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   if (!API_KEY) {
     throw new Error("PRETALX_API_KEY is not configured");
@@ -20,7 +34,7 @@ async function fetchJson<T>(url: string): Promise<T> {
     next: { revalidate: 300 },
   });
   if (!response.ok) {
-    throw new Error(`Pretalx request failed (${response.status}): ${url}`);
+    throw new PretalxRequestError(response.status, url);
   }
   return response.json() as Promise<T>;
 }

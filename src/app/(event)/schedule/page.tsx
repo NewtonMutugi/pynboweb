@@ -2,7 +2,10 @@ import { Calendar } from "lucide-react";
 import ScheduleTimeline, {
   type ScheduleDay,
 } from "@/components/schedule-timeline";
-import { getPublishedSchedule } from "@/lib/pretalx/client";
+import {
+  getPublishedSchedule,
+  PretalxRequestError,
+} from "@/lib/pretalx/client";
 import { formatPublishedSchedule } from "@/lib/pretalx/format-schedule";
 import type { PretalxEvent } from "@/lib/pretalx/types";
 
@@ -22,13 +25,31 @@ function formatDate(iso: string) {
 export default async function SchedulePage() {
   let event: PretalxEvent | null = null;
   let schedule: ScheduleDay[] = [];
+  let loadError = false;
 
   try {
     const data = await getPublishedSchedule();
     event = data.event;
     schedule = formatPublishedSchedule(data.schedule, data.event.timezone);
   } catch (error) {
+    // A 404 here just means Pretalx hasn't released a schedule yet, which
+    // is an expected, normal state. Anything else (auth, network, 5xx) is
+    // a real failure and shouldn't be shown as "not released yet".
+    if (!(error instanceof PretalxRequestError && error.status === 404)) {
+      loadError = true;
+    }
     console.error("Failed to load Pretalx schedule data", error);
+  }
+
+  if (loadError) {
+    return (
+      <div className="text-center space-y-2">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Schedule</h1>
+        <p className="text-gray-500">
+          We couldn't load the schedule right now. Please try again shortly.
+        </p>
+      </div>
+    );
   }
 
   if (!event) {

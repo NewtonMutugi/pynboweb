@@ -37,6 +37,14 @@ export function formatPublishedSchedule(
     .filter((slot) => slot.start && slot.end && slot.room)
     .sort((a, b) => (a.start as string).localeCompare(b.start as string));
 
+  // Only show a room label per session once there's more than one room in
+  // play - with a single room it's redundant on every card, but it must
+  // become visible the moment a second room is added or a session moves.
+  const roomNames = new Set(
+    scheduledSlots.map((slot) => slot.room?.name.en).filter(Boolean),
+  );
+  const showTrack = roomNames.size > 1;
+
   const sessionsByDate = new Map<string, ScheduleSession[]>();
 
   for (const slot of scheduledSlots) {
@@ -45,6 +53,8 @@ export function formatPublishedSchedule(
     const dateKey = start.slice(0, 10);
     const time = `${formatTime(start, timeZone)} - ${formatTime(end, timeZone)}`;
 
+    const track = showTrack ? slot.room?.name.en : undefined;
+
     const session: ScheduleSession = slot.submission
       ? {
           time,
@@ -52,6 +62,7 @@ export function formatPublishedSchedule(
           type: slot.submission.submission_type.name.en.toLowerCase(),
           speaker: slot.submission.speakers.map((s) => s.name).join(", "),
           duration: `${slot.duration} min`,
+          track,
           speakers: slot.submission.speakers.map((s) => ({
             name: s.name,
             avatarUrl: s.avatar_url,
@@ -63,6 +74,7 @@ export function formatPublishedSchedule(
           type: "break",
           speaker: "",
           duration: `${slot.duration} min`,
+          track,
         };
 
     const existing = sessionsByDate.get(dateKey);
