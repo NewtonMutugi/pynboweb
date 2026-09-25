@@ -36,7 +36,7 @@ export type PretalxSubmission = {
   abstract: string | null;
 };
 
-export type SessionType = "talk" | "workshop";
+export type SessionType = "talk" | "workshop" | "keynote" | "remarks";
 
 export type Speaker = {
   code: string;

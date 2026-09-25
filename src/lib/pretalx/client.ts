@@ -61,8 +61,14 @@ function resolveSessionType(
   typeNameById: Map<number, string>,
 ): Session["type"] | null {
   const name = typeNameById.get(submissionTypeId)?.toLowerCase();
-  if (name === "talk") return "talk";
-  if (name === "workshop") return "workshop";
+  if (
+    name === "talk" ||
+    name === "workshop" ||
+    name === "keynote" ||
+    name === "remarks"
+  ) {
+    return name;
+  }
   return null;
 }
 
