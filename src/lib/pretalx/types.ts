@@ -53,3 +53,37 @@ export type Session = {
   abstract: string | null;
   speakers: Speaker[];
 };
+
+export type PretalxRoom = {
+  id: number;
+  name: { en: string };
+};
+
+export type PretalxMultiLangString = { en?: string } | null;
+
+export type PretalxExpandedSubmission = {
+  code: string;
+  title: string;
+  speakers: PretalxSpeaker[];
+  submission_type: PretalxSubmissionType;
+};
+
+// A slot on a released schedule. `submission` is null for breaks, which
+// Pretalx represents as slots with no submission attached and a
+// `description` instead (see doc/api/resources.rst in pretalx/pretalx).
+export type PretalxScheduleSlot = {
+  id: number;
+  room: PretalxRoom | null;
+  start: string | null;
+  end: string | null;
+  description: PretalxMultiLangString;
+  duration: number;
+  submission: PretalxExpandedSubmission | null;
+};
+
+export type PretalxSchedule = {
+  id: number;
+  version: string;
+  published: string | null;
+  slots: PretalxScheduleSlot[];
+};

@@ -1,8 +1,10 @@
 import { Calendar } from "lucide-react";
-import ScheduleTimeline from "@/components/schedule-timeline";
-import { getConfirmedSessions, getEventInfo } from "@/lib/pretalx/client";
-import type { PretalxEvent, Session } from "@/lib/pretalx/types";
-import { buildSchedule } from "@/lib/schedule-template";
+import ScheduleTimeline, {
+  type ScheduleDay,
+} from "@/components/schedule-timeline";
+import { getPublishedSchedule } from "@/lib/pretalx/client";
+import { formatPublishedSchedule } from "@/lib/pretalx/format-schedule";
+import type { PretalxEvent } from "@/lib/pretalx/types";
 
 // The schedule depends on live Pretalx data, so it can't be prerendered
 // at build time (e.g. Pretalx credentials aren't available in CI).
@@ -18,30 +20,27 @@ function formatDate(iso: string) {
 }
 
 export default async function SchedulePage() {
-  let data: [PretalxEvent, Session[]] | null = null;
+  let event: PretalxEvent | null = null;
+  let schedule: ScheduleDay[] = [];
 
   try {
-    data = await Promise.all([getEventInfo(), getConfirmedSessions()]);
+    const data = await getPublishedSchedule();
+    event = data.event;
+    schedule = formatPublishedSchedule(data.schedule, data.event.timezone);
   } catch (error) {
     console.error("Failed to load Pretalx schedule data", error);
   }
 
-  if (!data) {
+  if (!event) {
     return (
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Schedule</h1>
         <p className="text-gray-500">
-          The schedule will be published here once sessions are confirmed.
+          The schedule will be published here once it's released.
         </p>
       </div>
     );
   }
-
-  const [event, sessions] = data;
-  const schedule = buildSchedule(sessions, [
-    formatDate(event.date_from),
-    formatDate(event.date_to),
-  ]);
 
   return (
     <div className="space-y-8">
@@ -56,12 +55,13 @@ export default async function SchedulePage() {
         </div>
       </div>
 
-      <p className="text-center text-gray-500 text-sm">
-        Keynote speakers will be announced closer to the event. All sessions run
-        in a single room, so nothing overlaps.
-      </p>
-
-      <ScheduleTimeline schedule={schedule} />
+      {schedule.length === 0 ? (
+        <p className="text-center text-gray-500">
+          The schedule will be published here once it's released.
+        </p>
+      ) : (
+        <ScheduleTimeline schedule={schedule} />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type {
   PretalxEvent,
   PretalxPage,
+  PretalxSchedule,
   PretalxSpeaker,
   PretalxSubmission,
   PretalxSubmissionType,
@@ -125,4 +126,32 @@ export async function getConfirmedSessions(): Promise<Session[]> {
 
 export async function getEventInfo(): Promise<PretalxEvent> {
   return getEvent();
+}
+
+// Fetches the currently released public schedule, fully expanded (rooms,
+// submissions, speakers, submission types) in a single request. Breaks are
+// represented as slots with a null `submission` and a `description`
+// instead - Pretalx doesn't expose a separate "breaks" resource. Slots
+// (including breaks) can only be created via the Pretalx schedule editor,
+// not the API, so managing the schedule day-to-day - including breaks -
+// happens entirely in Pretalx; this just mirrors whatever was released.
+export async function getPublishedSchedule(): Promise<{
+  event: PretalxEvent;
+  schedule: PretalxSchedule;
+}> {
+  const event = await getEvent();
+  const base = `${API_URL}${event.slug}`;
+  const expand = [
+    "slots",
+    "slots.room",
+    "slots.submission",
+    "slots.submission.speakers",
+    "slots.submission.submission_type",
+  ].join(",");
+
+  const schedule = await fetchJson<PretalxSchedule>(
+    `${base}/schedules/latest/?expand=${encodeURIComponent(expand)}`,
+  );
+
+  return { event, schedule };
 }
